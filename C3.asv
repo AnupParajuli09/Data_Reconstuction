@@ -1,0 +1,84 @@
+%%%% ============= Node Wise Similar Load Profile: PCA Temporal Data Reconstruction ============= %%%%
+
+clear all
+close all
+clc
+
+file='Data.xlsx';
+
+% =================  Bus power data of IEEE 123 bus ================= %
+data1=xlsread(file,1); % Bus power data
+bus=data1(:,1);
+phA_kw=data1(:,2);
+phA_kVAR=data1(:,3);
+phB_kw=data1(:,4);
+phB_kVAR=data1(:,5);
+phC_kw=data1(:,6);
+phC_kVAR=data1(:,7);
+T_kw=data1(:,8);
+T_kVAR=data1(:,9);
+Nbus=max(bus);
+
+% ============ Sample load profile generation: 1-min ============== %
+T=96; %24*60;
+% % ==== Similar Load Profile ====
+% L=zeros(T,1);
+% for t=1:T
+%     L(t,:)=(1.3-0.8)*rand+0.8;
+% end
+% plot(L)
+
+% % Test load profile 15-min
+data2=xlsread(file,2);
+% TL=24*60/15;
+% for t=1:TL
+%     Lt(t,:)=(1.3-0.8)*rand+0.8;
+% end
+
+
+% ======== Offline calculation of PCA parameters: Bus wise ========== %
+% trainpu=data2(:,2);
+trainpu=data2(1:96,2); % Training with 
+% plot(data2(1:96,1),trainpu)
+ph=3;
+P_L_demo=zeros(Nbus,T);
+for n=1:Nbus
+    for t=1:T
+        P_L_demo(n,t)=trainpu(t,1)*T_kw(n,1);
+    end
+end
+size_P=size(P_L_demo);
+
+% Temporal Mean vector calculation for each bus
+P_avg=zeros(Nbus,1);
+for n=1:Nbus
+    S=0;
+    for t=1:T
+        S=S+P_L_demo(n,t);
+    end
+    P_avg(n,1)=(1/T)*S;
+end
+
+% Temporal Covariance matrix calculation for each bus
+P_L_norm=P_L_demo-P_avg;
+% Cov_P_L=cov(P_L_norm)
+Cov_P_L=zeros(T,T,Nbus);
+for n=1:Nbus
+    for t1=1:T
+        S=0;
+        for t2=1:T
+            S=S+(P_L_demo(n,t1)-P_avg(n,1))*(P_L_demo(n,t2)-P_avg(n,1));
+        end
+        Cov_P_L(t1,t2,n)=(1/T)*S;
+    end
+end
+
+% Eigen values (D) and vectors (V) of covariance matrix of each bus
+for n=1:Nbus
+    [V(),D]=eig(Cov_P_L);
+
+% Sort eigen vectors
+    non_sortV=V;
+    colSums = sum(V);
+    [sumsorted , sortedIndices] = sort(colSums, 'descend');  % Sort indices in descending order
+    sortedV = V(:, sortedIndices);  % Rearrange columns based on sorted indices
